@@ -5,12 +5,25 @@ A server-side Fabric mod that lets vanilla Minecraft clients connect to a Lootr 
 ## Features
 
 - **Vanilla client compatibility.** All Lootr containers (chest, barrel, trapped chest, shulker, decorated pot, brushable blocks, trophy) appear as the closest vanilla counterpart on unmodded clients.
-- **Per-player "unlooted" particles.** Players see a configurable particle effect (default: enchant sparkles) above containers they haven't opened yet. Once opened, particles stop for that player but persist for others.
+- **Floating amethyst shard marker.** Every Lootr container has a small amethyst shard floating above it as a persistent visual signal — this tells players "this is a Lootr container, expect per-player loot inside." It's a deliberate departure from native Lootr's chest texture (which vanilla clients can't see anyway) so server admins can explain the symbol to players: *amethyst above the chest = Lootr loot*.
+- **Per-player "unlooted" particles.** On top of the marker, players see a configurable particle effect (default: enchant sparkles) above containers they haven't personally opened yet. Once a player opens the container, the sparkles stop for them but the amethyst marker stays visible (so they still know it's a Lootr container) and other players keep seeing both signals.
 - **Break-effect particles.** Native Lootr's break particles run client-side and aren't visible to vanilla clients; PolyLootr emits them server-side via vanilla particle packets.
 - **Trophy as a real trophy.** Lootr's trophy block renders as a blast furnace with a floating gold ingot above it, instead of a plain placeholder.
 - **Datapack compatibility.** Datapacks that use vanilla barrels or chests as custom-block GUIs (waystones, custom shops, etc.) won't be swallowed by Lootr's container conversion.
 - **Registry sync hygiene.** Lootr's custom stat and particle types are marked server-only so vanilla clients don't warn about unknown registry entries.
-- **JSON config** at `config/polylootr.json` for toggling each effect, swapping particle types, and changing the trophy display item.
+- **JSON config** at `config/polylootr.json` for toggling each effect, swapping particle types, and changing the marker / trophy display items.
+
+## What players see
+
+| State | Visual |
+|---|---|
+| Lootr container, you haven't opened it | Floating amethyst shard above + enchant sparkles |
+| Lootr container, you've already opened it | Floating amethyst shard above (no sparkles) |
+| Lootr trophy block | Blast furnace shape with a floating gold ingot above |
+| Lootr container being broken | Brief dust-plume particle burst |
+| Plain vanilla container | Nothing extra |
+
+The amethyst shard is configurable — set `markerEnabled: false` in the config to disable it entirely, or change `markerItemId` to a different vanilla item if your players want a different signal (e.g. `minecraft:gold_nugget`, `minecraft:nether_star`).
 
 ## Requirements
 
@@ -41,6 +54,8 @@ PolyLootr bundles polymer-core and polymer-virtual-entity via JIJ. If you want a
   "breakEffectEnabled": true,
   "breakEffectParticleId": "minecraft:dust_plume",
   "breakEffectParticleCount": 7,
+  "markerEnabled": true,
+  "markerItemId": "minecraft:amethyst_shard",
   "trophyDisplayItemId": "minecraft:gold_ingot"
 }
 ```
