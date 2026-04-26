@@ -43,7 +43,7 @@ PolyLootr bundles polymer-core and polymer-virtual-entity via JIJ. If you want a
 
 ## Configuration
 
-`config/polylootr.json`:
+PolyLootr writes a default `config/polylootr.json` on first launch:
 
 ```json
 {
@@ -60,7 +60,85 @@ PolyLootr bundles polymer-core and polymer-virtual-entity via JIJ. If you want a
 }
 ```
 
-Restart the server to apply config changes.
+Restart the server to apply config changes — PolyLootr loads the file once at mod init and does not hot-reload.
+
+### Config options
+
+| Key | Type | Default | Effect |
+|---|---|---|---|
+| `unopenedParticlesEnabled` | bool | `true` | Master toggle for the per-player sparkle particles on unopened containers. Set `false` to rely on the marker only. |
+| `unopenedParticleIntervalTicks` | int | `40` | How often (in server ticks, 20 = 1 second) each container emits a sparkle. Lower = more frequent / more network traffic. |
+| `unopenedParticleCount` | int | `3` | Particles per emission burst. Higher = denser visual. |
+| `unopenedParticleId` | string | `minecraft:enchant` | Particle type id. Any vanilla simple particle works (e.g. `minecraft:end_rod`, `minecraft:happy_villager`, `minecraft:soul_fire_flame`). Invalid ids fall back to enchant. |
+| `breakEffectEnabled` | bool | `true` | Whether to emit a particle burst when a Lootr container is broken. |
+| `breakEffectParticleId` | string | `minecraft:dust_plume` | Particle type for the break burst. |
+| `breakEffectParticleCount` | int | `7` | Particles in the break burst. |
+| `markerEnabled` | bool | `true` | Whether to render the floating item marker (default: amethyst shard) above every Lootr container. |
+| `markerItemId` | string | `minecraft:amethyst_shard` | Item id shown as the marker. Try `minecraft:gold_nugget`, `minecraft:nether_star`, `minecraft:diamond`, `minecraft:experience_bottle`, etc. Invalid ids fall back to amethyst shard. |
+| `trophyDisplayItemId` | string | `minecraft:gold_ingot` | Item shown floating above trophy blocks. |
+
+## Refilling already-looted chests
+
+Lootr's automatic conversion only catches **vanilla chests that still have their `LootTable` NBT tag**. World-generated chests get this tag at chunk generation; the tag stays until a player opens the chest, at which point vanilla rolls the table once and strips the tag.
+
+This means: **chests opened by anyone before Lootr was installed will NOT auto-convert when Lootr starts running.** They look like ordinary empty chests to Lootr, and players who arrive later get nothing.
+
+The fix is one of Lootr's built-in commands. Run as op or from console:
+
+### Single chest
+
+```
+/lootr custom-chest <x> <y> <z> <loot_table>
+```
+
+Example: `/lootr custom-chest 100 40 -200 minecraft:chests/simple_dungeon` converts the block at those coordinates into a fresh Lootr chest using the simple dungeon loot table. Every player gets their own roll going forward.
+
+### Bulk (entire dimension)
+
+```
+/lootr custom-map <level> <loot_table>
+```
+
+This walks the dimension and converts every matching vanilla container. Use carefully — best for fresh server setup, not live worlds.
+
+### Common loot tables
+
+If you don't know which table the chest originally rolled, pick the closest match:
+
+| Structure | Loot table |
+|---|---|
+| Simple dungeon (cobble + spawner) | `minecraft:chests/simple_dungeon` |
+| Abandoned mineshaft | `minecraft:chests/abandoned_mineshaft` |
+| Stronghold corridor | `minecraft:chests/stronghold_corridor` |
+| Stronghold crossing | `minecraft:chests/stronghold_crossing` |
+| Stronghold library | `minecraft:chests/stronghold_library` |
+| Desert pyramid | `minecraft:chests/desert_pyramid` |
+| Jungle temple | `minecraft:chests/jungle_temple` |
+| Buried treasure | `minecraft:chests/buried_treasure` |
+| Shipwreck (treasure) | `minecraft:chests/shipwreck_treasure` |
+| Shipwreck (supply) | `minecraft:chests/shipwreck_supply` |
+| Shipwreck (map) | `minecraft:chests/shipwreck_map` |
+| End city treasure | `minecraft:chests/end_city_treasure` |
+| Nether bridge | `minecraft:chests/nether_bridge` |
+| Bastion treasure | `minecraft:chests/bastion_treasure` |
+| Bastion bridge | `minecraft:chests/bastion_bridge` |
+| Bastion hoglin stable | `minecraft:chests/bastion_hoglin_stable` |
+| Bastion other | `minecraft:chests/bastion_other` |
+| Pillager outpost | `minecraft:chests/pillager_outpost` |
+| Igloo basement chest | `minecraft:chests/igloo_chest` |
+| Trial chamber reward | `minecraft:chests/trial_chambers/reward` |
+| Ancient city | `minecraft:chests/ancient_city` |
+| Ancient city ice box | `minecraft:chests/ancient_city_ice_box` |
+| Ruined portal | `minecraft:chests/ruined_portal` |
+| Woodland mansion | `minecraft:chests/woodland_mansion` |
+| Village (generic) | `minecraft:chests/village/village_weaponsmith` |
+
+When in doubt, `minecraft:chests/simple_dungeon` is a safe generic default — decent random gear without being overpowered.
+
+### Other useful commands
+
+- `/lootr clear` — clears the opener list on a Lootr container. Every player can re-loot it from scratch.
+- `/lootr refresh` — regenerates loot for a Lootr container without clearing the opener list.
 
 ## License
 
