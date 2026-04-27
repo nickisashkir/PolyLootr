@@ -7,6 +7,7 @@ import eu.pb4.polymer.virtualentity.api.elements.ItemDisplayElement;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Display;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -14,26 +15,24 @@ import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 
 /**
- * Default marker overlay for Lootr containers (chests, barrels, shulkers, etc.).
+ * Marker overlay for Lootr containers (chests, barrels, shulkers, etc.).
  *
- * <p>Renders a single small floating item display above the container — by default
- * an amethyst shard — billboarded so it always faces the player. The element is
- * intentionally minimal: its purpose is to provide a static "this is a Lootr
- * container" signal to complement the particle emission driven by
- * {@link MarkerHolder}.
+ * <p>Renders a single small floating item display above the container, billboarded
+ * so it always faces the player. Each container type has its own default item
+ * (configured at {@link dev.ashkir.polylootr.overlay.ContainerMappings}); the user
+ * can globally override via {@link PolyLootrConfig#markerItemId}.
  *
- * <p>The displayed item and whether the marker shows at all are configurable via
- * {@link PolyLootrConfig}.
- *
- * <p>Singleton — registered once per Lootr block, reused across all instances.
+ * <p>Not a singleton — one instance per (block, default-marker-item) pair so each
+ * container type carries its own thematic indicator.
  */
 public final class MarkerRenderer implements BlockWithElementHolder {
-    public static final MarkerRenderer INSTANCE = new MarkerRenderer();
-
     private static final float MARKER_SCALE = 0.35f;
     private static final double MARKER_Y_OFFSET = 0.85;
 
-    private MarkerRenderer() {
+    private final Item defaultMarkerItem;
+
+    public MarkerRenderer(Item defaultMarkerItem) {
+        this.defaultMarkerItem = defaultMarkerItem;
     }
 
     @Override
@@ -46,7 +45,10 @@ public final class MarkerRenderer implements BlockWithElementHolder {
         MarkerHolder holder = new MarkerHolder();
         if (!PolyLootrConfig.get().markerEnabled) return holder;
 
-        ItemDisplayElement marker = new ItemDisplayElement(new ItemStack(PolyLootrConfig.get().markerItem()));
+        Item override = PolyLootrConfig.get().markerItemOverride();
+        Item item = override != null ? override : defaultMarkerItem;
+
+        ItemDisplayElement marker = new ItemDisplayElement(new ItemStack(item));
         marker.setScale(new Vector3f(MARKER_SCALE, MARKER_SCALE, MARKER_SCALE));
         marker.setOffset(new Vec3(0, MARKER_Y_OFFSET, 0));
         marker.setBillboardMode(Display.BillboardConstraints.VERTICAL);

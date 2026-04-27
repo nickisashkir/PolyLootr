@@ -5,25 +5,31 @@ A server-side Fabric mod that lets vanilla Minecraft clients connect to a Lootr 
 ## Features
 
 - **Vanilla client compatibility.** All Lootr containers (chest, barrel, trapped chest, shulker, decorated pot, brushable blocks, trophy) appear as the closest vanilla counterpart on unmodded clients.
-- **Floating amethyst shard marker.** Every Lootr container has a small amethyst shard floating above it as a persistent visual signal — this tells players "this is a Lootr container, expect per-player loot inside." It's a deliberate departure from native Lootr's chest texture (which vanilla clients can't see anyway) so server admins can explain the symbol to players: *amethyst above the chest = Lootr loot*.
-- **Per-player "unlooted" particles.** On top of the marker, players see a configurable particle effect (default: enchant sparkles) above containers they haven't personally opened yet. Once a player opens the container, the sparkles stop for them but the amethyst marker stays visible (so they still know it's a Lootr container) and other players keep seeing both signals.
+- **Per-type marker items.** Each container type floats a thematic vanilla item above it so players can tell what's inside at a glance:
+  - chest = amethyst shard, trapped chest = redstone, barrel = wheat, shulker = ender pearl, suspicious sand/gravel + decorated pot = brush. Trophy block stays gold ingot.
+  - Globally override with one item via `markerItemId` in the config, or disable entirely with `markerEnabled: false`.
+- **Per-player "unlooted" particles.** On top of the marker, players see a configurable particle effect (default: enchant sparkles) above containers they haven't personally opened yet. Once a player opens the container, the sparkles stop for them but the marker stays visible.
+- **Refresh-burst particles.** When a Lootr container's refresh timer hits and it has fresh loot to give, PolyLootr fires a one-shot particle burst (default: happy villager green) so nearby players notice without needing to interact first.
+- **First-open sound.** A configurable vanilla sound (default: experience-orb pickup, mid-pitched) plays for a player the first time they open a Lootr container — reinforces the "fresh loot" feel without relying on chat messages.
 - **Break-effect particles.** Native Lootr's break particles run client-side and aren't visible to vanilla clients; PolyLootr emits them server-side via vanilla particle packets.
 - **Trophy as a real trophy.** Lootr's trophy block renders as a blast furnace with a floating gold ingot above it, instead of a plain placeholder.
 - **Datapack compatibility.** Datapacks that use vanilla barrels or chests as custom-block GUIs (waystones, custom shops, etc.) won't be swallowed by Lootr's container conversion.
 - **Registry sync hygiene.** Lootr's custom stat and particle types are marked server-only so vanilla clients don't warn about unknown registry entries.
-- **JSON config** at `config/polylootr.json` for toggling each effect, swapping particle types, and changing the marker / trophy display items.
+- **JSON config** at `config/polylootr.json` for toggling each effect, swapping particle/sound types, and changing marker / trophy display items.
 
-## What players see
+## What players see and hear
 
-| State | Visual |
+| Event / state | Effect |
 |---|---|
-| Lootr container, you haven't opened it | Floating amethyst shard above + enchant sparkles |
-| Lootr container, you've already opened it | Floating amethyst shard above (no sparkles) |
+| Lootr container, never opened by you | Floating type-themed item marker (amethyst / redstone / wheat / etc.) + enchant sparkles |
+| You open a Lootr container for the first time | Brief sound effect (default: xp-pickup-style chime) |
+| Lootr container, already opened by you | Marker stays; sparkles stop for you (still on for others) |
+| Lootr container's loot refreshes | Burst of happy-villager particles broadcast to nearby players |
 | Lootr trophy block | Blast furnace shape with a floating gold ingot above |
 | Lootr container being broken | Brief dust-plume particle burst |
 | Plain vanilla container | Nothing extra |
 
-The amethyst shard is configurable — set `markerEnabled: false` in the config to disable it entirely, or change `markerItemId` to a different vanilla item if your players want a different signal (e.g. `minecraft:gold_nugget`, `minecraft:nether_star`).
+All visuals and the sound are toggleable / swappable via `config/polylootr.json`.
 
 ## Requirements
 
@@ -54,8 +60,15 @@ PolyLootr writes a default `config/polylootr.json` on first launch:
   "breakEffectEnabled": true,
   "breakEffectParticleId": "minecraft:dust_plume",
   "breakEffectParticleCount": 7,
+  "refreshBurstEnabled": true,
+  "refreshBurstParticleId": "minecraft:happy_villager",
+  "refreshBurstParticleCount": 20,
+  "firstOpenSoundEnabled": true,
+  "firstOpenSoundId": "minecraft:entity.experience_orb.pickup",
+  "firstOpenSoundVolume": 0.6,
+  "firstOpenSoundPitch": 1.4,
   "markerEnabled": true,
-  "markerItemId": "minecraft:amethyst_shard",
+  "markerItemId": "",
   "trophyDisplayItemId": "minecraft:gold_ingot"
 }
 ```
@@ -73,8 +86,15 @@ Restart the server to apply config changes — PolyLootr loads the file once at 
 | `breakEffectEnabled` | bool | `true` | Whether to emit a particle burst when a Lootr container is broken. |
 | `breakEffectParticleId` | string | `minecraft:dust_plume` | Particle type for the break burst. |
 | `breakEffectParticleCount` | int | `7` | Particles in the break burst. |
-| `markerEnabled` | bool | `true` | Whether to render the floating item marker (default: amethyst shard) above every Lootr container. |
-| `markerItemId` | string | `minecraft:amethyst_shard` | Item id shown as the marker. Try `minecraft:gold_nugget`, `minecraft:nether_star`, `minecraft:diamond`, `minecraft:experience_bottle`, etc. Invalid ids fall back to amethyst shard. |
+| `refreshBurstEnabled` | bool | `true` | Whether to broadcast a particle burst when a container's refresh timer fires. |
+| `refreshBurstParticleId` | string | `minecraft:happy_villager` | Particle type for the refresh burst. Try `minecraft:totem_of_undying` for a more dramatic effect. |
+| `refreshBurstParticleCount` | int | `20` | Particles in the refresh burst. |
+| `firstOpenSoundEnabled` | bool | `true` | Whether to play a sound to a player on their first open of any Lootr container. |
+| `firstOpenSoundId` | string | `minecraft:entity.experience_orb.pickup` | Vanilla sound id. Try `minecraft:block.amethyst_block.chime`, `minecraft:entity.player.levelup`, or `minecraft:block.note_block.bell`. |
+| `firstOpenSoundVolume` | float | `0.6` | Sound volume (0.0 – 1.0+). |
+| `firstOpenSoundPitch` | float | `1.4` | Sound pitch (0.5 = octave down, 2.0 = octave up). |
+| `markerEnabled` | bool | `true` | Whether to render the floating item marker above Lootr containers. |
+| `markerItemId` | string | `""` (empty) | Empty = use the per-container-type defaults (chest = amethyst, barrel = wheat, etc.). Set to a vanilla item id (e.g. `minecraft:gold_nugget`) to use the same item on all containers. |
 | `trophyDisplayItemId` | string | `minecraft:gold_ingot` | Item shown floating above trophy blocks. |
 
 ## Refilling already-looted chests

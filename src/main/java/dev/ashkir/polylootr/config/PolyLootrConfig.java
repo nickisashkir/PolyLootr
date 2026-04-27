@@ -9,6 +9,8 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import org.slf4j.Logger;
@@ -40,8 +42,23 @@ public final class PolyLootrConfig {
     public String breakEffectParticleId = "minecraft:dust_plume";
     public int breakEffectParticleCount = 7;
 
+    public boolean refreshBurstEnabled = true;
+    public String refreshBurstParticleId = "minecraft:happy_villager";
+    public int refreshBurstParticleCount = 20;
+
+    public boolean firstOpenSoundEnabled = true;
+    public String firstOpenSoundId = "minecraft:entity.experience_orb.pickup";
+    public float firstOpenSoundVolume = 0.6f;
+    public float firstOpenSoundPitch = 1.4f;
+
     public boolean markerEnabled = true;
-    public String markerItemId = "minecraft:amethyst_shard";
+    /**
+     * Global override for the marker item. Empty string means "use the per-container-type
+     * default" (chest = amethyst shard, barrel = wheat, shulker = ender pearl, etc.).
+     * Set to a vanilla item id (e.g. {@code "minecraft:gold_nugget"}) to use the same
+     * item on every Lootr container.
+     */
+    public String markerItemId = "";
 
     public String trophyDisplayItemId = "minecraft:gold_ingot";
 
@@ -80,8 +97,24 @@ public final class PolyLootrConfig {
         return resolveSimpleParticle(breakEffectParticleId, ParticleTypes.DUST_PLUME);
     }
 
-    public Item markerItem() {
-        return resolveItem(markerItemId, Items.AMETHYST_SHARD);
+    public ParticleOptions refreshBurstParticle() {
+        return resolveSimpleParticle(refreshBurstParticleId, ParticleTypes.HAPPY_VILLAGER);
+    }
+
+    public SoundEvent firstOpenSound() {
+        return resolveSound(firstOpenSoundId, SoundEvents.EXPERIENCE_ORB_PICKUP);
+    }
+
+    /**
+     * Returns the global marker-item override if {@link #markerItemId} is set, otherwise
+     * {@code null} so callers know to use the per-container-type default.
+     */
+    public Item markerItemOverride() {
+        if (markerItemId == null || markerItemId.isEmpty()) return null;
+        Identifier id = Identifier.tryParse(markerItemId);
+        if (id == null) return null;
+        Item item = BuiltInRegistries.ITEM.getValue(id);
+        return item == Items.AIR ? null : item;
     }
 
     public Item trophyDisplayItem() {
@@ -100,5 +133,12 @@ public final class PolyLootrConfig {
         if (id == null) return fallback;
         Item item = BuiltInRegistries.ITEM.getValue(id);
         return item == Items.AIR ? fallback : item;
+    }
+
+    private static SoundEvent resolveSound(String idString, SoundEvent fallback) {
+        Identifier id = Identifier.tryParse(idString);
+        if (id == null) return fallback;
+        SoundEvent sound = BuiltInRegistries.SOUND_EVENT.getValue(id);
+        return sound != null ? sound : fallback;
     }
 }
