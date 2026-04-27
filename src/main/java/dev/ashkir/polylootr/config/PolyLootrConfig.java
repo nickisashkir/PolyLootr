@@ -79,6 +79,14 @@ public final class PolyLootrConfig {
 
     public String trophyDisplayItemId = "minecraft:gold_ingot";
 
+    public boolean commandsEnabled = true;
+    public int commandPermissionLevel = 2;
+
+    public boolean menuTitleInfoEnabled = true;
+    public String menuTitleRefreshSuffix = " §a(refresh in %s)";
+    public String menuTitleDecaySuffix = " §c(decay in %s)";
+    public String menuTitleOpenersSuffix = " §7[%d opener%s]";
+
     private static Map<String, String> defaultMarkerItems() {
         Map<String, String> m = new LinkedHashMap<>();
         m.put("chest", "minecraft:amethyst_shard");

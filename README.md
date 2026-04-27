@@ -9,6 +9,11 @@ A server-side Fabric mod that lets vanilla Minecraft clients connect to a Lootr 
   - chest = amethyst shard, trapped chest = redstone, barrel = wheat, shulker = ender pearl, suspicious sand/gravel + decorated pot = brush. Trophy block stays gold ingot.
   - Edit any value under `markerItems` in the config to swap a single type's item. Set the global `markerItemId` to one item to override every type at once. Set `markerEnabled: false` to hide markers entirely.
 - **Marker hides for players who already looted (v1.2+).** Once a player opens a Lootr container, the floating marker disappears for *them* — easy way to see at a glance which chests you've already cleared. Other players keep seeing it until they too open it. Toggle with `markerHideAfterOpen` in the config.
+- **Menu title shows live state (v1.3+).** When a player opens a Lootr container, the menu title is augmented with refresh / decay countdowns and opener count (e.g. *"Loot Chest §a(refresh in 4m 30s) §7[2 openers]"*). Format strings configurable; disable with `menuTitleInfoEnabled: false`.
+- **`/polylootr` admin commands (v1.3+).** Reload config without restart, list Lootr containers near you with their state, and check looted-stat counts:
+  - `/polylootr reload`
+  - `/polylootr nearby [radius]`
+  - `/polylootr stats [player]`
 - **Per-player "unlooted" particles.** On top of the marker, players see a configurable particle effect (default: enchant sparkles) above containers they haven't personally opened yet. Once a player opens the container, the sparkles stop for them.
 - **Refresh-burst particles.** When a Lootr container's refresh timer hits and it has fresh loot to give, PolyLootr fires a one-shot particle burst (default: happy villager green) so nearby players notice without needing to interact first.
 - **First-open sound.** A configurable vanilla sound (default: experience-orb pickup, mid-pitched) plays for a player the first time they open a Lootr container — reinforces the "fresh loot" feel without relying on chat messages.
@@ -44,7 +49,7 @@ PolyLootr bundles polymer-core and polymer-virtual-entity via JIJ. If you want a
 
 ## Installation
 
-1. Drop `PolyLootr-1.2.0+26.1.jar` into your server's `mods/` folder alongside Lootr and Fabric API.
+1. Drop `PolyLootr-1.3.0+26.1.jar` into your server's `mods/` folder alongside Lootr and Fabric API.
 2. Start the server. PolyLootr will create `config/polylootr.json` on first run.
 3. Vanilla clients can now connect; they'll see Lootr containers as plain vanilla containers with per-player particles indicating unlooted state.
 
@@ -81,7 +86,13 @@ PolyLootr writes a default `config/polylootr.json` on first launch:
     "decorated_pot": "minecraft:brush"
   },
   "markerItemId": "",
-  "trophyDisplayItemId": "minecraft:gold_ingot"
+  "trophyDisplayItemId": "minecraft:gold_ingot",
+  "commandsEnabled": true,
+  "commandPermissionLevel": 2,
+  "menuTitleInfoEnabled": true,
+  "menuTitleRefreshSuffix": " §a(refresh in %s)",
+  "menuTitleDecaySuffix": " §c(decay in %s)",
+  "menuTitleOpenersSuffix": " §7[%d opener%s]"
 }
 ```
 
@@ -111,6 +122,22 @@ Restart the server to apply config changes — PolyLootr loads the file once at 
 | `markerItems.<type>` | string | per type | Per-container-type marker item. Edit a single value to change one type's marker. Container types: `chest`, `trapped_chest`, `barrel`, `shulker_box`, `suspicious_sand`, `suspicious_gravel`, `decorated_pot`. Invalid ids fall back to the wrapper's built-in default. |
 | `markerItemId` | string | `""` (empty) | Global override. Empty = use `markerItems` per-type values. Set to a vanilla item id (e.g. `minecraft:gold_nugget`) to force the same item on every Lootr container regardless of type. |
 | `trophyDisplayItemId` | string | `minecraft:gold_ingot` | Item shown floating above trophy blocks. |
+| `commandsEnabled` | bool | `true` | Whether to register the `/polylootr` command tree. |
+| `commandPermissionLevel` | int | `2` | Op level required (0 = ALL, 1 = MODERATORS, 2 = GAMEMASTERS, 3 = ADMINS, 4 = OWNERS). 26.1 redefined permissions; this is mapped to the equivalent `PermissionCheck`. |
+| `menuTitleInfoEnabled` | bool | `true` | Whether to append live refresh / decay / opener info to the menu title when a player opens a Lootr container. |
+| `menuTitleRefreshSuffix` | string | ` §a(refresh in %s)` | Format string appended when refresh timer is active. `%s` is the formatted duration (e.g. `4m 30s`). Set to empty to suppress. |
+| `menuTitleDecaySuffix` | string | ` §c(decay in %s)` | Same, for the decay timer. |
+| `menuTitleOpenersSuffix` | string | ` §7[%d opener%s]` | Format string showing how many players have opened. `%d` is the count, `%s` is `""` or `"s"` for pluralization. |
+
+## Commands
+
+All `/polylootr` subcommands require op level >= `commandPermissionLevel` (default 2 / GAMEMASTERS).
+
+| Command | Effect |
+|---|---|
+| `/polylootr reload` | Re-reads `config/polylootr.json` without restarting. Marker visuals updated on next chunk reload; menu title and command behaviors take effect immediately. |
+| `/polylootr nearby [radius]` | Lists every Lootr container within `radius` blocks of you (default 16, max 64). Shows position, opener count, refresh / decay state. |
+| `/polylootr stats [player]` | Shows the `lootr:looted_stat` counter for you (or the named player). |
 
 ## Refilling already-looted chests
 

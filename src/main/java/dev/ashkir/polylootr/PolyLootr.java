@@ -1,5 +1,6 @@
 package dev.ashkir.polylootr;
 
+import dev.ashkir.polylootr.commands.PolyLootrCommands;
 import dev.ashkir.polylootr.config.PolyLootrConfig;
 import eu.pb4.polymer.rsm.api.RegistrySyncUtils;
 import net.fabricmc.api.ModInitializer;
@@ -46,6 +47,8 @@ public class PolyLootr implements ModInitializer {
         markServerOnly(BuiltInRegistries.CUSTOM_STAT, ModStats.LOOTED_LOCATION);
         RegistrySyncUtils.setServerEntry(BuiltInRegistries.PARTICLE_TYPE, ModParticles.UNOPENED_PARTCLE);
         RegistrySyncUtils.setServerEntry(BuiltInRegistries.PARTICLE_TYPE, ModParticles.REFRESH_PARTICLE);
+
+        PolyLootrCommands.register();
     }
 
     /**
