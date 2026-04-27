@@ -5,10 +5,11 @@ A server-side Fabric mod that lets vanilla Minecraft clients connect to a Lootr 
 ## Features
 
 - **Vanilla client compatibility.** All Lootr containers (chest, barrel, trapped chest, shulker, decorated pot, brushable blocks, trophy) appear as the closest vanilla counterpart on unmodded clients.
-- **Per-type marker items.** Each container type floats a thematic vanilla item above it so players can tell what's inside at a glance:
+- **Per-type marker items, fully configurable.** Each container type floats a thematic vanilla item above it so players can tell what's inside at a glance. Each type's item is editable in the config:
   - chest = amethyst shard, trapped chest = redstone, barrel = wheat, shulker = ender pearl, suspicious sand/gravel + decorated pot = brush. Trophy block stays gold ingot.
-  - Globally override with one item via `markerItemId` in the config, or disable entirely with `markerEnabled: false`.
-- **Per-player "unlooted" particles.** On top of the marker, players see a configurable particle effect (default: enchant sparkles) above containers they haven't personally opened yet. Once a player opens the container, the sparkles stop for them but the marker stays visible.
+  - Edit any value under `markerItems` in the config to swap a single type's item. Set the global `markerItemId` to one item to override every type at once. Set `markerEnabled: false` to hide markers entirely.
+- **Marker hides for players who already looted (v1.2+).** Once a player opens a Lootr container, the floating marker disappears for *them* — easy way to see at a glance which chests you've already cleared. Other players keep seeing it until they too open it. Toggle with `markerHideAfterOpen` in the config.
+- **Per-player "unlooted" particles.** On top of the marker, players see a configurable particle effect (default: enchant sparkles) above containers they haven't personally opened yet. Once a player opens the container, the sparkles stop for them.
 - **Refresh-burst particles.** When a Lootr container's refresh timer hits and it has fresh loot to give, PolyLootr fires a one-shot particle burst (default: happy villager green) so nearby players notice without needing to interact first.
 - **First-open sound.** A configurable vanilla sound (default: experience-orb pickup, mid-pitched) plays for a player the first time they open a Lootr container — reinforces the "fresh loot" feel without relying on chat messages.
 - **Break-effect particles.** Native Lootr's break particles run client-side and aren't visible to vanilla clients; PolyLootr emits them server-side via vanilla particle packets.
@@ -23,13 +24,13 @@ A server-side Fabric mod that lets vanilla Minecraft clients connect to a Lootr 
 |---|---|
 | Lootr container, never opened by you | Floating type-themed item marker (amethyst / redstone / wheat / etc.) + enchant sparkles |
 | You open a Lootr container for the first time | Brief sound effect (default: xp-pickup-style chime) |
-| Lootr container, already opened by you | Marker stays; sparkles stop for you (still on for others) |
+| Lootr container, you've already opened it | Marker disappears for you; other players still see it until they open it too |
 | Lootr container's loot refreshes | Burst of happy-villager particles broadcast to nearby players |
 | Lootr trophy block | Blast furnace shape with a floating gold ingot above |
 | Lootr container being broken | Brief dust-plume particle burst |
 | Plain vanilla container | Nothing extra |
 
-All visuals and the sound are toggleable / swappable via `config/polylootr.json`.
+Every visual and the sound is toggleable / swappable via `config/polylootr.json`. The "marker hides after you open" behavior toggles via `markerHideAfterOpen`.
 
 ## Requirements
 
@@ -43,7 +44,7 @@ PolyLootr bundles polymer-core and polymer-virtual-entity via JIJ. If you want a
 
 ## Installation
 
-1. Drop `PolyLootr-1.0.0+26.1.jar` into your server's `mods/` folder alongside Lootr and Fabric API.
+1. Drop `PolyLootr-1.2.0+26.1.jar` into your server's `mods/` folder alongside Lootr and Fabric API.
 2. Start the server. PolyLootr will create `config/polylootr.json` on first run.
 3. Vanilla clients can now connect; they'll see Lootr containers as plain vanilla containers with per-player particles indicating unlooted state.
 
@@ -68,6 +69,17 @@ PolyLootr writes a default `config/polylootr.json` on first launch:
   "firstOpenSoundVolume": 0.6,
   "firstOpenSoundPitch": 1.4,
   "markerEnabled": true,
+  "markerHideAfterOpen": true,
+  "markerItemsHelp": "Per-container-type marker items. Map keys are container types (chest, trapped_chest, barrel, shulker_box, suspicious_sand, suspicious_gravel, decorated_pot). Values are vanilla item ids; invalid ids fall back to the wrapper's built-in default for that type. The 'markerItemId' field below globally overrides every entry here when non-empty.",
+  "markerItems": {
+    "chest": "minecraft:amethyst_shard",
+    "trapped_chest": "minecraft:redstone",
+    "barrel": "minecraft:wheat",
+    "shulker_box": "minecraft:ender_pearl",
+    "suspicious_sand": "minecraft:brush",
+    "suspicious_gravel": "minecraft:brush",
+    "decorated_pot": "minecraft:brush"
+  },
   "markerItemId": "",
   "trophyDisplayItemId": "minecraft:gold_ingot"
 }
@@ -94,7 +106,10 @@ Restart the server to apply config changes — PolyLootr loads the file once at 
 | `firstOpenSoundVolume` | float | `0.6` | Sound volume (0.0 – 1.0+). |
 | `firstOpenSoundPitch` | float | `1.4` | Sound pitch (0.5 = octave down, 2.0 = octave up). |
 | `markerEnabled` | bool | `true` | Whether to render the floating item marker above Lootr containers. |
-| `markerItemId` | string | `""` (empty) | Empty = use the per-container-type defaults (chest = amethyst, barrel = wheat, etc.). Set to a vanilla item id (e.g. `minecraft:gold_nugget`) to use the same item on all containers. |
+| `markerHideAfterOpen` | bool | `true` | When true, the marker disappears for any player who has personally opened the container. Other players keep seeing it. |
+| `markerItemsHelp` | string | (auto) | Inline help string the wrapper writes back into the JSON. Edit it freely; PolyLootr only restores it if you blank it. |
+| `markerItems.<type>` | string | per type | Per-container-type marker item. Edit a single value to change one type's marker. Container types: `chest`, `trapped_chest`, `barrel`, `shulker_box`, `suspicious_sand`, `suspicious_gravel`, `decorated_pot`. Invalid ids fall back to the wrapper's built-in default. |
+| `markerItemId` | string | `""` (empty) | Global override. Empty = use `markerItems` per-type values. Set to a vanilla item id (e.g. `minecraft:gold_nugget`) to force the same item on every Lootr container regardless of type. |
 | `trophyDisplayItemId` | string | `minecraft:gold_ingot` | Item shown floating above trophy blocks. |
 
 ## Refilling already-looted chests

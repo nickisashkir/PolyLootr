@@ -19,6 +19,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * JSON-backed configuration. Loaded once at mod init; not reloaded at runtime.
@@ -52,15 +54,42 @@ public final class PolyLootrConfig {
     public float firstOpenSoundPitch = 1.4f;
 
     public boolean markerEnabled = true;
+    public boolean markerHideAfterOpen = true;
+
+    /**
+     * Help string serialized into the JSON to document {@link #markerItems}.
+     * Gson preserves it round-trip so server admins reading the file see what
+     * each option does without consulting external docs.
+     */
+    public String markerItemsHelp =
+            "Per-container-type marker items. Map keys are container types (chest, " +
+            "trapped_chest, barrel, shulker_box, suspicious_sand, suspicious_gravel, " +
+            "decorated_pot). Values are vanilla item ids; invalid ids fall back to the " +
+            "wrapper's built-in default for that type. The 'markerItemId' field below " +
+            "globally overrides every entry here when non-empty.";
+
+    public Map<String, String> markerItems = defaultMarkerItems();
+
     /**
      * Global override for the marker item. Empty string means "use the per-container-type
-     * default" (chest = amethyst shard, barrel = wheat, shulker = ender pearl, etc.).
-     * Set to a vanilla item id (e.g. {@code "minecraft:gold_nugget"}) to use the same
-     * item on every Lootr container.
+     * map below". Set to a vanilla item id (e.g. {@code "minecraft:gold_nugget"}) to use
+     * the same item on every Lootr container regardless of type.
      */
     public String markerItemId = "";
 
     public String trophyDisplayItemId = "minecraft:gold_ingot";
+
+    private static Map<String, String> defaultMarkerItems() {
+        Map<String, String> m = new LinkedHashMap<>();
+        m.put("chest", "minecraft:amethyst_shard");
+        m.put("trapped_chest", "minecraft:redstone");
+        m.put("barrel", "minecraft:wheat");
+        m.put("shulker_box", "minecraft:ender_pearl");
+        m.put("suspicious_sand", "minecraft:brush");
+        m.put("suspicious_gravel", "minecraft:brush");
+        m.put("decorated_pot", "minecraft:brush");
+        return m;
+    }
 
     public static PolyLootrConfig get() {
         return INSTANCE;
@@ -77,7 +106,23 @@ public final class PolyLootrConfig {
             }
         }
         INSTANCE = loaded != null ? loaded : new PolyLootrConfig();
+        INSTANCE.fillDefaults();
         write(path);
+    }
+
+    /**
+     * Ensures all marker-item map keys are present after loading an older config
+     * that may not have the field, or has it but is missing some keys (e.g. user
+     * added a new container type). Existing user values are never overwritten.
+     */
+    private void fillDefaults() {
+        if (markerItems == null) markerItems = new LinkedHashMap<>();
+        for (var e : defaultMarkerItems().entrySet()) {
+            markerItems.putIfAbsent(e.getKey(), e.getValue());
+        }
+        if (markerItemsHelp == null || markerItemsHelp.isEmpty()) {
+            markerItemsHelp = new PolyLootrConfig().markerItemsHelp;
+        }
     }
 
     private static void write(Path path) {
@@ -106,19 +151,38 @@ public final class PolyLootrConfig {
     }
 
     /**
-     * Returns the global marker-item override if {@link #markerItemId} is set, otherwise
-     * {@code null} so callers know to use the per-container-type default.
+     * Resolves the marker item for a given container type, applying overrides
+     * in priority order:
+     * <ol>
+     *   <li>Global {@link #markerItemId} (if non-empty and resolvable)</li>
+     *   <li>Per-type entry in {@link #markerItems} (if present and resolvable)</li>
+     *   <li>The hardcoded fallback passed by the caller (the renderer's compile-time default)</li>
+     * </ol>
      */
-    public Item markerItemOverride() {
-        if (markerItemId == null || markerItemId.isEmpty()) return null;
-        Identifier id = Identifier.tryParse(markerItemId);
-        if (id == null) return null;
-        Item item = BuiltInRegistries.ITEM.getValue(id);
-        return item == Items.AIR ? null : item;
+    public Item markerItemFor(String type, Item fallback) {
+        Item global = resolveOptionalItem(markerItemId);
+        if (global != null) return global;
+        if (markerItems != null) {
+            Item perType = resolveOptionalItem(markerItems.get(type));
+            if (perType != null) return perType;
+        }
+        return fallback;
     }
 
     public Item trophyDisplayItem() {
         return resolveItem(trophyDisplayItemId, Items.GOLD_INGOT);
+    }
+
+    /**
+     * Resolves an item id string to an Item, returning {@code null} if the id is
+     * empty, unparseable, or maps to an unregistered item. Useful for "unset" semantics.
+     */
+    private static Item resolveOptionalItem(String idString) {
+        if (idString == null || idString.isEmpty()) return null;
+        Identifier id = Identifier.tryParse(idString);
+        if (id == null) return null;
+        Item item = BuiltInRegistries.ITEM.getValue(id);
+        return item == Items.AIR ? null : item;
     }
 
     private static ParticleOptions resolveSimpleParticle(String idString, SimpleParticleType fallback) {

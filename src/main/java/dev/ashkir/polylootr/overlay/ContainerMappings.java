@@ -14,9 +14,10 @@ import java.util.List;
 /**
  * Single source of truth for every Lootr container the wrapper translates.
  *
- * <p>Each container type carries its own thematic marker item (chest = amethyst
- * shard, barrel = wheat, shulker = ender pearl, etc.). The user can globally
- * override via {@link dev.ashkir.polylootr.config.PolyLootrConfig#markerItemId}.
+ * <p>Each {@link MarkerRenderer} carries a type key (matched against
+ * {@link dev.ashkir.polylootr.config.PolyLootrConfig#markerItems}) and a
+ * compile-time default item used when neither the global override nor the
+ * per-type config entry resolves.
  */
 public final class ContainerMappings {
     public static final List<ContainerMapping> ALL = List.of(
@@ -24,43 +25,43 @@ public final class ContainerMappings {
                     ModBlocks.CHEST, Blocks.CHEST,
                     ModItems.CHEST, Items.CHEST,
                     ModBlockEntities.CHEST, BlockEntityType.CHEST,
-                    new MarkerRenderer(Items.AMETHYST_SHARD)
+                    new MarkerRenderer("chest", Items.AMETHYST_SHARD)
             ),
             new ContainerMapping(
                     ModBlocks.TRAPPED_CHEST, Blocks.TRAPPED_CHEST,
                     ModItems.TRAPPED_CHEST, Items.TRAPPED_CHEST,
                     ModBlockEntities.TRAPPED_CHEST, BlockEntityType.TRAPPED_CHEST,
-                    new MarkerRenderer(Items.REDSTONE)
+                    new MarkerRenderer("trapped_chest", Items.REDSTONE)
             ),
             new ContainerMapping(
                     ModBlocks.BARREL, Blocks.BARREL,
                     ModItems.BARREL, Items.BARREL,
                     ModBlockEntities.BARREL, BlockEntityType.BARREL,
-                    new MarkerRenderer(Items.WHEAT)
+                    new MarkerRenderer("barrel", Items.WHEAT)
             ),
             new ContainerMapping(
                     ModBlocks.SHULKER_BOX, Blocks.SHULKER_BOX,
                     ModItems.SHULKER_BOX, Items.SHULKER_BOX,
                     ModBlockEntities.SHULKER_BOX, BlockEntityType.SHULKER_BOX,
-                    new MarkerRenderer(Items.ENDER_PEARL)
+                    new MarkerRenderer("shulker_box", Items.ENDER_PEARL)
             ),
             new ContainerMapping(
                     ModBlocks.SUSPICIOUS_SAND, Blocks.SUSPICIOUS_SAND,
                     ModItems.SUSPICIOUS_SAND, Items.SUSPICIOUS_SAND,
                     ModBlockEntities.BRUSHABLE_BLOCK, BlockEntityType.BRUSHABLE_BLOCK,
-                    new MarkerRenderer(Items.BRUSH)
+                    new MarkerRenderer("suspicious_sand", Items.BRUSH)
             ),
             new ContainerMapping(
                     ModBlocks.SUSPICIOUS_GRAVEL, Blocks.SUSPICIOUS_GRAVEL,
                     ModItems.SUSPICIOUS_GRAVEL, Items.SUSPICIOUS_GRAVEL,
                     null, null,
-                    new MarkerRenderer(Items.BRUSH)
+                    new MarkerRenderer("suspicious_gravel", Items.BRUSH)
             ),
             new ContainerMapping(
                     ModBlocks.DECORATED_POT, Blocks.DECORATED_POT,
                     ModItems.DECORATED_POT, Items.DECORATED_POT,
                     ModBlockEntities.DECORATED_POT, BlockEntityType.DECORATED_POT,
-                    new MarkerRenderer(Items.BRUSH)
+                    new MarkerRenderer("decorated_pot", Items.BRUSH)
             ),
             // Trophy is HorizontalDirectional; BLAST_FURNACE matches that property
             // layout so withPropertiesOf actually copies facing.

@@ -17,21 +17,27 @@ import org.joml.Vector3f;
 /**
  * Marker overlay for Lootr containers (chests, barrels, shulkers, etc.).
  *
- * <p>Renders a single small floating item display above the container, billboarded
- * so it always faces the player. Each container type has its own default item
- * (configured at {@link dev.ashkir.polylootr.overlay.ContainerMappings}); the user
- * can globally override via {@link PolyLootrConfig#markerItemId}.
- *
- * <p>Not a singleton — one instance per (block, default-marker-item) pair so each
- * container type carries its own thematic indicator.
+ * <p>Each instance represents one Lootr container type. At render time it asks
+ * {@link PolyLootrConfig#markerItemFor(String, Item)} for the item to display,
+ * which applies overrides in this order: global override &gt; per-type config &gt;
+ * the {@code defaultMarkerItem} the renderer was constructed with.
  */
 public final class MarkerRenderer implements BlockWithElementHolder {
     private static final float MARKER_SCALE = 0.35f;
     private static final double MARKER_Y_OFFSET = 0.85;
 
+    private final String type;
     private final Item defaultMarkerItem;
 
-    public MarkerRenderer(Item defaultMarkerItem) {
+    /**
+     * @param type the container-type key used to look up
+     *             {@link PolyLootrConfig#markerItems} (e.g. {@code "chest"},
+     *             {@code "barrel"})
+     * @param defaultMarkerItem fallback used when the user has neither set a
+     *                          global override nor a per-type entry
+     */
+    public MarkerRenderer(String type, Item defaultMarkerItem) {
+        this.type = type;
         this.defaultMarkerItem = defaultMarkerItem;
     }
 
@@ -45,9 +51,7 @@ public final class MarkerRenderer implements BlockWithElementHolder {
         MarkerHolder holder = new MarkerHolder();
         if (!PolyLootrConfig.get().markerEnabled) return holder;
 
-        Item override = PolyLootrConfig.get().markerItemOverride();
-        Item item = override != null ? override : defaultMarkerItem;
-
+        Item item = PolyLootrConfig.get().markerItemFor(type, defaultMarkerItem);
         ItemDisplayElement marker = new ItemDisplayElement(new ItemStack(item));
         marker.setScale(new Vector3f(MARKER_SCALE, MARKER_SCALE, MARKER_SCALE));
         marker.setOffset(new Vec3(0, MARKER_Y_OFFSET, 0));
