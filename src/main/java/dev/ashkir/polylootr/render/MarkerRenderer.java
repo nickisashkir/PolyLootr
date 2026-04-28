@@ -56,6 +56,13 @@ public final class MarkerRenderer implements BlockWithElementHolder {
         marker.setScale(new Vector3f(MARKER_SCALE, MARKER_SCALE, MARKER_SCALE));
         marker.setOffset(new Vec3(0, MARKER_Y_OFFSET, 0));
         marker.setBillboardMode(Display.BillboardConstraints.VERTICAL);
+        if (PolyLootrConfig.get().markerGlowingEnabled) {
+            marker.setGlowing(true);
+            int color = PolyLootrConfig.get().markerGlowColor;
+            if (color >= 0) {
+                marker.setGlowColorOverride(color);
+            }
+        }
         holder.addElement(marker);
         return holder;
     }

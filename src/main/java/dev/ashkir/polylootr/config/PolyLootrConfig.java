@@ -55,6 +55,12 @@ public final class PolyLootrConfig {
 
     public boolean markerEnabled = true;
     public boolean markerHideAfterOpen = true;
+    public boolean markerGlowingEnabled = true;
+    /**
+     * Glow outline color for the marker, as 0xRRGGBB (no alpha). {@code -1} means
+     * "no override" — vanilla picks the entity's team color (white if no team).
+     */
+    public int markerGlowColor = 0x55FFFF;
 
     /**
      * Help string serialized into the JSON to document {@link #markerItems}.

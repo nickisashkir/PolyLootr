@@ -20,31 +20,32 @@ import java.util.List;
  * Shared element holder driving particle effects and per-player visibility for
  * one Lootr container.
  *
- * <p>Caches the {@link ILootrBlockEntity}, particle emission origin, and
- * (lazily) the {@link ILootrInventoryStore} so subsequent ticks skip lookups.
- *
- * <h2>Per-player visibility (hide after open)</h2>
+ * <h2>Per-player visibility (hide after open, refresh-aware)</h2>
  * When {@link PolyLootrConfig#markerHideAfterOpen} is on (default), the marker
- * disappears for any player who has personally opened the container:
- * <ul>
- *   <li>{@link #startWatching(ServerGamePacketListenerImpl)} is overridden so
- *       a player who already opened never starts seeing the marker when they
- *       enter view distance.</li>
- *   <li>Each tick prunes existing watchers who have flipped to
- *       {@code hasServerOpened == true} since they started watching.</li>
- * </ul>
+ * disappears for any player who has personally opened the container — UNLESS
+ * the container's loot has just refreshed, in which case the marker reappears
+ * for everyone (including previous openers) so nobody misses fresh loot. The
+ * "refresh window" lasts until any player opens the container post-refresh,
+ * which clears Lootr's {@code isRefreshed} flag via {@code performRefresh()}.
+ *
+ * <p>{@link #startWatching(ServerGamePacketListenerImpl)} rejects players whose
+ * marker would be hidden so they don't see/load it; {@link #onTick()} prunes
+ * watchers who have flipped to opened since they started.
+ *
+ * <h2>Refresh burst + re-watch</h2>
+ * On the false→true transition of {@link ILootrInventoryStore#isRefreshed()},
+ * broadcasts a particle burst AND iterates online players in range, calling
+ * {@code startWatching} for any whose marker should now be visible (because
+ * the refresh-aware visibility check now lets them through).
  *
  * <h2>Per-player unopened sparkles</h2>
  * For each watching player who has not yet opened, a configurable particle
  * burst is sent via {@code ServerLevel.sendParticles(player, ...)}. Frequency
  * is gated by {@link PolyLootrConfig#unopenedParticleIntervalTicks}.
- *
- * <h2>Refresh burst</h2>
- * When {@link ILootrInventoryStore#isRefreshed()} flips from {@code false} to
- * {@code true} (refresh timer fired), broadcasts a one-shot particle burst.
- * Detected by polling each tick and tracking {@link #lastRefreshState}.
  */
 public class MarkerHolder extends ElementHolder {
+    private static final double REFRESH_REWATCH_RADIUS_SQ = 64 * 64;
+
     private int tickCounter = 0;
     private @Nullable ILootrBlockEntity cachedBlockEntity;
     private @Nullable ILootrInventoryStore cachedStore;
@@ -58,7 +59,7 @@ public class MarkerHolder extends ElementHolder {
     public boolean startWatching(ServerGamePacketListenerImpl handler) {
         if (PolyLootrConfig.get().markerHideAfterOpen) {
             ILootrBlockEntity be = resolveBlockEntity();
-            if (be != null && be.hasServerOpened(handler.getPlayer())) {
+            if (be != null && shouldHideForPlayer(be, handler.getPlayer())) {
                 return false;
             }
         }
@@ -76,11 +77,30 @@ public class MarkerHolder extends ElementHolder {
         ILootrBlockEntity be = resolveBlockEntity();
         if (be == null) return;
 
-        // Hide marker for players who've opened the chest since they started watching.
+        // Refresh detection (must run before visibility prune so the prune sees the new state)
+        if (config.refreshBurstEnabled || config.markerHideAfterOpen) {
+            ILootrInventoryStore store = resolveStore(be);
+            if (store != null) {
+                boolean refreshed = store.isRefreshed();
+                if (refreshed && !lastRefreshState) {
+                    if (config.refreshBurstEnabled) {
+                        ParticleOptions burst = config.refreshBurstParticle();
+                        world.sendParticles(burst, false, false, emitX, emitY, emitZ,
+                                config.refreshBurstParticleCount, 0.5, 0.5, 0.5, 0.05);
+                    }
+                    if (config.markerHideAfterOpen) {
+                        rewatchNearbyPlayers(world);
+                    }
+                }
+                lastRefreshState = refreshed;
+            }
+        }
+
+        // Hide marker for players whose visibility check now says hide
         if (config.markerHideAfterOpen) {
             List<ServerGamePacketListenerImpl> toRemove = null;
             for (var handler : getWatchingPlayers()) {
-                if (be.hasServerOpened(handler.getPlayer())) {
+                if (shouldHideForPlayer(be, handler.getPlayer())) {
                     if (toRemove == null) toRemove = new ArrayList<>();
                     toRemove.add(handler);
                 }
@@ -92,21 +112,7 @@ public class MarkerHolder extends ElementHolder {
             }
         }
 
-        // Refresh burst: poll every tick, broadcast on transition.
-        if (config.refreshBurstEnabled) {
-            ILootrInventoryStore store = resolveStore(be);
-            if (store != null) {
-                boolean refreshed = store.isRefreshed();
-                if (refreshed && !lastRefreshState) {
-                    ParticleOptions burst = config.refreshBurstParticle();
-                    world.sendParticles(burst, false, false, emitX, emitY, emitZ,
-                            config.refreshBurstParticleCount, 0.5, 0.5, 0.5, 0.05);
-                }
-                lastRefreshState = refreshed;
-            }
-        }
-
-        // Unopened sparkles: per-player, throttled by interval.
+        // Unopened sparkles: per-player, throttled by interval
         if (!config.unopenedParticlesEnabled) return;
         tickCounter++;
         if (tickCounter < config.unopenedParticleIntervalTicks) return;
@@ -120,6 +126,34 @@ public class MarkerHolder extends ElementHolder {
             world.sendParticles(player, particle, false, false,
                     emitX, emitY, emitZ,
                     config.unopenedParticleCount, 0.15, 0.1, 0.15, 0.02);
+        }
+    }
+
+    /**
+     * Returns true if the marker should be hidden from the given player right
+     * now. Hidden iff the player has opened the container AND the container is
+     * NOT currently in its refreshed-but-not-yet-consumed window.
+     */
+    private boolean shouldHideForPlayer(ILootrBlockEntity be, ServerPlayer player) {
+        if (!be.hasServerOpened(player)) return false;
+        ILootrInventoryStore store = resolveStore(be);
+        if (store != null && store.isRefreshed()) return false;
+        return true;
+    }
+
+    /**
+     * On a refresh transition, walk online players within the rewatch radius and
+     * try to start watching them. {@code startWatching} is idempotent (returns
+     * false if already watching) and respects the visibility check, so this is
+     * safe to call broadly.
+     */
+    private void rewatchNearbyPlayers(ServerLevel world) {
+        for (ServerPlayer player : world.players()) {
+            double dx = player.getX() - emitX;
+            double dy = player.getY() - emitY;
+            double dz = player.getZ() - emitZ;
+            if (dx * dx + dy * dy + dz * dz > REFRESH_REWATCH_RADIUS_SQ) continue;
+            startWatching(player);
         }
     }
 

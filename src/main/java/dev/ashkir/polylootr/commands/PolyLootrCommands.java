@@ -7,6 +7,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -20,6 +21,8 @@ import noobanidus.mods.lootr.fabric.init.ModStats;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 import static net.minecraft.commands.Commands.argument;
 import static net.minecraft.commands.Commands.literal;
@@ -31,13 +34,12 @@ import static net.minecraft.commands.Commands.literal;
  *
  * <p>Subcommands:
  * <ul>
- *   <li>{@code /polylootr reload} — re-read {@code config/polylootr.json}
- *       without restarting the server.</li>
- *   <li>{@code /polylootr nearby [radius]} — list every Lootr container within
- *       {@code radius} blocks of the executor (default 16) with its current
- *       refresh / decay state and opener count.</li>
- *   <li>{@code /polylootr stats [player]} — report the {@code lootr:looted_stat}
- *       value for the executor (or named target).</li>
+ *   <li>{@code /polylootr help} — print all subcommands.</li>
+ *   <li>{@code /polylootr reload} — re-read config without restarting.</li>
+ *   <li>{@code /polylootr nearby [radius]} — list Lootr containers near you.</li>
+ *   <li>{@code /polylootr stats [player]} — report a player's looted-stat count.</li>
+ *   <li>{@code /polylootr forget <player> <pos>} — clear a player's open state at
+ *       a specific Lootr container so they can re-roll fresh loot.</li>
  * </ul>
  */
 public final class PolyLootrCommands {
@@ -52,8 +54,11 @@ public final class PolyLootrCommands {
 
             dispatcher.register(literal("polylootr")
                     .requires(source -> permission.check(source.permissions()))
+                    .executes(ctx -> help(ctx.getSource()))
+                    .then(literal("help")
+                            .executes(ctx -> help(ctx.getSource())))
                     .then(literal("reload")
-                            .executes(PolyLootrCommands::reload))
+                            .executes(ctx -> reload(ctx.getSource())))
                     .then(literal("nearby")
                             .executes(ctx -> nearby(ctx.getSource(), DEFAULT_NEARBY_RADIUS))
                             .then(argument("radius", IntegerArgumentType.integer(1, MAX_NEARBY_RADIUS))
@@ -63,14 +68,29 @@ public final class PolyLootrCommands {
                             .executes(ctx -> stats(ctx.getSource(), ctx.getSource().getPlayerOrException()))
                             .then(argument("player", EntityArgument.player())
                                     .executes(ctx -> stats(ctx.getSource(),
-                                            EntityArgument.getPlayer(ctx, "player"))))));
+                                            EntityArgument.getPlayer(ctx, "player")))))
+                    .then(literal("forget")
+                            .then(argument("player", EntityArgument.player())
+                                    .then(argument("pos", BlockPosArgument.blockPos())
+                                            .executes(ctx -> forget(ctx.getSource(),
+                                                    EntityArgument.getPlayer(ctx, "player"),
+                                                    BlockPosArgument.getBlockPos(ctx, "pos")))))));
         });
     }
 
-    private static int reload(com.mojang.brigadier.context.CommandContext<CommandSourceStack> ctx) {
+    private static int help(CommandSourceStack source) {
+        line(source, "PolyLootr commands:", ChatFormatting.AQUA);
+        line(source, "  /polylootr reload — reload config/polylootr.json", ChatFormatting.GRAY);
+        line(source, "  /polylootr nearby [radius] — list Lootr containers near you", ChatFormatting.GRAY);
+        line(source, "  /polylootr stats [player] — show looted-stat count", ChatFormatting.GRAY);
+        line(source, "  /polylootr forget <player> <pos> — let a player re-loot a container", ChatFormatting.GRAY);
+        line(source, "  /polylootr help — show this list", ChatFormatting.GRAY);
+        return 1;
+    }
+
+    private static int reload(CommandSourceStack source) {
         PolyLootrConfig.load();
-        ctx.getSource().sendSuccess(() ->
-                Component.literal("PolyLootr config reloaded.").withStyle(ChatFormatting.GREEN), true);
+        line(source, "PolyLootr config reloaded.", ChatFormatting.GREEN);
         return 1;
     }
 
@@ -82,6 +102,7 @@ public final class PolyLootrCommands {
         List<NearbyResult> results = new ArrayList<>();
         int radiusSquared = radius * radius;
 
+        outer:
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dy = -radius; dy <= radius; dy++) {
                 for (int dz = -radius; dz <= radius; dz++) {
@@ -90,24 +111,19 @@ public final class PolyLootrCommands {
                     BlockEntity be = world.getBlockEntity(pos);
                     if (!(be instanceof ILootrBlockEntity lootr)) continue;
                     results.add(new NearbyResult(pos, lootr));
-                    if (results.size() >= MAX_LIST_RESULTS) break;
+                    if (results.size() >= MAX_LIST_RESULTS) break outer;
                 }
-                if (results.size() >= MAX_LIST_RESULTS) break;
             }
-            if (results.size() >= MAX_LIST_RESULTS) break;
         }
 
         if (results.isEmpty()) {
-            source.sendSuccess(() ->
-                    Component.literal("No Lootr containers within " + radius + " blocks.")
-                            .withStyle(ChatFormatting.YELLOW), false);
+            line(source, "No Lootr containers within " + radius + " blocks.", ChatFormatting.YELLOW);
             return 0;
         }
 
-        source.sendSuccess(() ->
-                Component.literal("Lootr containers within " + radius + " blocks (" + results.size()
-                        + (results.size() >= MAX_LIST_RESULTS ? "+" : "") + "):")
-                        .withStyle(ChatFormatting.AQUA), false);
+        line(source, "Lootr containers within " + radius + " blocks ("
+                + results.size() + (results.size() >= MAX_LIST_RESULTS ? "+" : "") + "):",
+                ChatFormatting.AQUA);
 
         for (NearbyResult r : results) {
             BlockPos p = r.pos();
@@ -140,6 +156,55 @@ public final class PolyLootrCommands {
                         .append(Component.literal(String.valueOf(count)).withStyle(ChatFormatting.GOLD))
                         .append(Component.literal(" Lootr container" + (count == 1 ? "" : "s") + ".")), false);
         return count;
+    }
+
+    /**
+     * Clears the target player's open state at the given Lootr container so they
+     * can re-roll fresh loot. Removes the player's UUID from the actual + visual
+     * opener sets and clears their per-player inventory snapshot.
+     */
+    private static int forget(CommandSourceStack source, ServerPlayer target, BlockPos pos) {
+        ServerLevel world = source.getLevel();
+        BlockEntity be = world.getBlockEntity(pos);
+        if (!(be instanceof ILootrBlockEntity lootr)) {
+            source.sendFailure(Component.literal(
+                    "No Lootr container at " + pos.toShortString() + "."));
+            return 0;
+        }
+
+        UUID uuid = target.getUUID();
+        boolean removed = removeFromOpenerSet(lootr.getActualOpeners(), uuid);
+        removeFromOpenerSet(lootr.getVisualOpeners(), uuid);
+
+        ILootrInventoryStore store = LootrAPI.getData(lootr);
+        if (store != null) {
+            store.clearInventories(uuid);
+        }
+
+        lootr.updatePacketViaForce();
+
+        if (removed) {
+            line(source, target.getName().getString() + " can re-loot the container at "
+                    + pos.toShortString() + ".", ChatFormatting.GREEN);
+            return 1;
+        } else {
+            line(source, target.getName().getString() + " hadn't opened the container at "
+                    + pos.toShortString() + " (no change).", ChatFormatting.YELLOW);
+            return 0;
+        }
+    }
+
+    /** Tries to remove a UUID from an opener set, swallowing UnsupportedOperationException. */
+    private static boolean removeFromOpenerSet(Set<UUID> openers, UUID uuid) {
+        try {
+            return openers.remove(uuid);
+        } catch (UnsupportedOperationException e) {
+            return false;
+        }
+    }
+
+    private static void line(CommandSourceStack source, String text, ChatFormatting color) {
+        source.sendSuccess(() -> Component.literal(text).withStyle(color), false);
     }
 
     /** Formats a tick count as a human-readable duration like {@code 2m 35s}. */
