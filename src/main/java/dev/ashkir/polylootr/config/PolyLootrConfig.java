@@ -71,6 +71,14 @@ public final class PolyLootrConfig {
     public boolean useLootrTextures = true;
 
     /**
+     * When {@code true}, Lootr chests and trapped chests are rendered on vanilla
+     * clients as a custom chest-shape block (via Polymer Blocks) using Lootr's
+     * gold_planks / silver_planks textures, instead of vanilla CHEST. Vanilla
+     * chests on the server are unaffected. Requires server resource pack acceptance.
+     */
+    public boolean useCustomChestBlock = true;
+
+    /**
      * When {@code true}, the vanilla-item marker (amethyst shard, wheat, etc.
      * from {@link #markerItems}) is rendered ALONGSIDE the Lootr-textured cube
      * — useful if you want both the brand cube and an item-shaped indicator.

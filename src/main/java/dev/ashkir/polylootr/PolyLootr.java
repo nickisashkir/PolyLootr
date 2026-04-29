@@ -2,6 +2,7 @@ package dev.ashkir.polylootr;
 
 import dev.ashkir.polylootr.commands.PolyLootrCommands;
 import dev.ashkir.polylootr.config.PolyLootrConfig;
+import dev.ashkir.polylootr.overlay.LootrPolymerBlocks;
 import dev.ashkir.polylootr.render.EntityMarkerAttacher;
 import eu.pb4.polymer.resourcepack.api.PolymerResourcePackUtils;
 import eu.pb4.polymer.rsm.api.RegistrySyncUtils;
@@ -57,6 +58,12 @@ public class PolyLootr implements ModInitializer {
         // vanilla clients can render the custom item models we register on
         // markers. polymer-autohost (also bundled) handles distribution.
         PolymerResourcePackUtils.addModAssets(ID);
+
+        // Reserve polymer-block states for the chest-shape custom blocks. Must
+        // run before LootrInitMixin's overlay registration (which checks the
+        // results), so we do it in our entrypoint — Fabric guarantees
+        // dependent mods' onInitialize fire after their dependencies'.
+        LootrPolymerBlocks.register();
     }
 
     /**
