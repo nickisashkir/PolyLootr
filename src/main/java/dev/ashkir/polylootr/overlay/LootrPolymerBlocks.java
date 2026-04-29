@@ -4,9 +4,12 @@ import dev.ashkir.polylootr.PolyLootr;
 import eu.pb4.polymer.blocks.api.BlockModelType;
 import eu.pb4.polymer.blocks.api.PolymerBlockModel;
 import eu.pb4.polymer.blocks.api.PolymerBlockResourceUtils;
+import eu.pb4.polymer.resourcepack.api.PolymerResourcePackUtils;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Registers custom-textured Lootr-style block states via Polymer Blocks.
@@ -24,6 +27,8 @@ import org.jetbrains.annotations.Nullable;
  * swapped for ours.
  */
 public final class LootrPolymerBlocks {
+    private static final Logger LOG = LoggerFactory.getLogger("polylootr/blocks");
+
     public static @Nullable BlockState CHEST_STATE;
     public static @Nullable BlockState TRAPPED_CHEST_STATE;
 
@@ -32,20 +37,32 @@ public final class LootrPolymerBlocks {
     public static void register() {
         if (registered) return;
         registered = true;
+        PolymerResourcePackUtils.addModAssets(PolyLootr.ID);
+        PolymerResourcePackUtils.markAsRequired();
+
+        int beforeFullBlock = PolymerBlockResourceUtils.getBlocksLeft(BlockModelType.FULL_BLOCK);
+        LOG.info("polymer-blocks FULL_BLOCK pool size before chest reservations: {}", beforeFullBlock);
+
         CHEST_STATE = requestBlock("block/lootr_chest");
         TRAPPED_CHEST_STATE = requestBlock("block/lootr_trapped_chest");
+
+        LOG.info("CHEST_STATE = {}", CHEST_STATE);
+        LOG.info("TRAPPED_CHEST_STATE = {}", TRAPPED_CHEST_STATE);
+        LOG.info("polymer-blocks FULL_BLOCK pool size after: {}",
+                PolymerBlockResourceUtils.getBlocksLeft(BlockModelType.FULL_BLOCK));
     }
 
     private static @Nullable BlockState requestBlock(String modelPath) {
         try {
             Identifier modelId = Identifier.fromNamespaceAndPath(PolyLootr.ID, modelPath);
-            return PolymerBlockResourceUtils.requestBlock(
+            BlockState result = PolymerBlockResourceUtils.requestBlock(
                     BlockModelType.FULL_BLOCK,
                     PolymerBlockModel.of(modelId)
             );
+            LOG.info("Reserved polymer block state for {}: {}", modelId, result);
+            return result;
         } catch (Throwable t) {
-            // Polymer Blocks state pool exhausted, or registration failed —
-            // we fall back to vanilla block mapping in the registrar.
+            LOG.warn("polymer-blocks requestBlock failed for {}: {}", modelPath, t.toString());
             return null;
         }
     }
