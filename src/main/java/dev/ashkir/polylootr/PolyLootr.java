@@ -58,6 +58,10 @@ public class PolyLootr implements ModInitializer {
         // vanilla clients can render the custom item models we register on
         // markers. polymer-autohost (also bundled) handles distribution.
         PolymerResourcePackUtils.addModAssets(ID);
+        // Required to ensure polymer-blocks generates the note_block blockstate
+        // override that maps our reserved states to our custom block models.
+        // Without this, the underlying note_block renders as a plain noteblock.
+        PolymerResourcePackUtils.markAsRequired();
 
         // Reserve polymer-block states for the chest-shape custom blocks. Must
         // run before LootrInitMixin's overlay registration (which checks the

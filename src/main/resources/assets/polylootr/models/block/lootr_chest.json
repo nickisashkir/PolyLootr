@@ -1,47 +1,6 @@
 {
+  "parent": "minecraft:block/cube_all",
   "textures": {
-    "particle": "polylootr:block/gold_planks",
     "all": "polylootr:block/gold_planks"
-  },
-  "elements": [
-    {
-      "name": "body",
-      "from": [1, 0, 1],
-      "to": [15, 9, 15],
-      "faces": {
-        "north": {"uv": [0, 0, 14, 9], "texture": "#all"},
-        "south": {"uv": [0, 0, 14, 9], "texture": "#all"},
-        "east":  {"uv": [0, 0, 14, 9], "texture": "#all"},
-        "west":  {"uv": [0, 0, 14, 9], "texture": "#all"},
-        "up":    {"uv": [0, 0, 14, 14], "texture": "#all"},
-        "down":  {"uv": [0, 0, 14, 14], "texture": "#all"}
-      }
-    },
-    {
-      "name": "lid",
-      "from": [1, 9, 1],
-      "to": [15, 14, 15],
-      "faces": {
-        "north": {"uv": [0, 0, 14, 5], "texture": "#all"},
-        "south": {"uv": [0, 0, 14, 5], "texture": "#all"},
-        "east":  {"uv": [0, 0, 14, 5], "texture": "#all"},
-        "west":  {"uv": [0, 0, 14, 5], "texture": "#all"},
-        "up":    {"uv": [0, 0, 14, 14], "texture": "#all"},
-        "down":  {"uv": [0, 0, 14, 14], "texture": "#all"}
-      }
-    },
-    {
-      "name": "lock",
-      "from": [7, 8, 0],
-      "to": [9, 12, 1],
-      "faces": {
-        "north": {"uv": [0, 0, 2, 4], "texture": "#all"},
-        "south": {"uv": [0, 0, 2, 4], "texture": "#all"},
-        "east":  {"uv": [0, 0, 1, 4], "texture": "#all"},
-        "west":  {"uv": [0, 0, 1, 4], "texture": "#all"},
-        "up":    {"uv": [0, 0, 2, 1], "texture": "#all"},
-        "down":  {"uv": [0, 0, 2, 1], "texture": "#all"}
-      }
-    }
-  ]
+  }
 }
