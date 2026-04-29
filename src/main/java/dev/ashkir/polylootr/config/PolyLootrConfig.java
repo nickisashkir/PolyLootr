@@ -132,6 +132,13 @@ public final class PolyLootrConfig {
     }
 
     public static PolyLootrConfig get() {
+        if (INSTANCE == null) {
+            // Lazy load — guards against callers that run before our
+            // ModInitializer.onInitialize (e.g. PolymerOverlayRegistrar runs
+            // from a TAIL-inject into Lootr's onInitialize, which Fabric
+            // schedules before ours since lootr is in our depends list).
+            load();
+        }
         return INSTANCE;
     }
 

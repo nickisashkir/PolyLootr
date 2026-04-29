@@ -22,6 +22,12 @@ import noobanidus.mods.lootr.fabric.init.ModBlocks;
  */
 public final class PolymerOverlayRegistrar {
     public static void registerAll() {
+        // The mixin that calls us TAIL-injects into Lootr's onInitialize, which
+        // Fabric schedules before our own onInitialize (since polylootr depends
+        // on lootr). Reserve the polymer-block states defensively here so we
+        // don't NPE when reading them below — register() is idempotent.
+        LootrPolymerBlocks.register();
+
         for (ContainerMapping mapping : ContainerMappings.ALL) {
             BlockState polymerBlockState = polymerBlockStateFor(mapping);
             if (polymerBlockState != null) {

@@ -27,7 +27,11 @@ public final class LootrPolymerBlocks {
     public static @Nullable BlockState CHEST_STATE;
     public static @Nullable BlockState TRAPPED_CHEST_STATE;
 
+    private static boolean registered = false;
+
     public static void register() {
+        if (registered) return;
+        registered = true;
         CHEST_STATE = requestBlock("block/lootr_chest");
         TRAPPED_CHEST_STATE = requestBlock("block/lootr_trapped_chest");
     }
