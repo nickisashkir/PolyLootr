@@ -33,11 +33,21 @@ public final class MarkerRenderer implements BlockWithElementHolder {
     @Override
     public @Nullable ElementHolder createElementHolder(ServerLevel world, BlockPos pos, BlockState initialBlockState) {
         MarkerHolder holder = new MarkerHolder();
-        if (!PolyLootrConfig.get().markerEnabled) return holder;
+        PolyLootrConfig config = PolyLootrConfig.get();
 
-        for (var element : MarkerVisuals.build(type, defaultMarkerItem, BLOCK_MARKER_Y_OFFSET)) {
-            holder.addElement(element);
+        if (config.useChestOverlay && isChestType()) {
+            holder.addElement(ChestOverlay.create(type, initialBlockState));
+        }
+
+        if (config.markerEnabled) {
+            for (var element : MarkerVisuals.build(type, defaultMarkerItem, BLOCK_MARKER_Y_OFFSET)) {
+                holder.addElement(element);
+            }
         }
         return holder;
+    }
+
+    private boolean isChestType() {
+        return "chest".equals(type) || "trapped_chest".equals(type);
     }
 }

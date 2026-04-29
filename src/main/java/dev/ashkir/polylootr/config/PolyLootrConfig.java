@@ -89,6 +89,24 @@ public final class PolyLootrConfig {
     public boolean useCustomChestBlock = false;
 
     /**
+     * When {@code true}, overlays a chest-shape display element (with Lootr's
+     * chest texture) on top of every Lootr chest / trapped chest, rendering
+     * roughly at block size and rotated to match the block's facing.
+     *
+     * <p>Independent of {@link #useCustomChestBlock} — the overlay rides on
+     * top of whatever underlying block render the client gets (vanilla CHEST
+     * by default; the polymer note_block when {@code useCustomChestBlock} is
+     * on). Pure-vanilla underneath is the recommended pairing because it
+     * avoids note_block audio quirks AND gives clients the Lootr chest visual.
+     *
+     * <p>Vanilla CHEST renders as an animated entity with hinges; the overlay
+     * is static. When a player opens a vanilla chest the lid animates, but
+     * Lootr chests don't increment the block-entity open count, so the lid
+     * stays closed — the overlay sits flush with the static vanilla chest.
+     */
+    public boolean useChestOverlay = false;
+
+    /**
      * When {@code true}, the vanilla-item marker (amethyst shard, wheat, etc.
      * from {@link #markerItems}) is rendered ALONGSIDE the Lootr-textured cube
      * — useful if you want both the brand cube and an item-shaped indicator.
