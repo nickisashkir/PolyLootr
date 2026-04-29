@@ -11,6 +11,7 @@ A server-side Fabric mod that lets vanilla Minecraft clients connect to a Lootr 
 - **Marker hides for players who already looted (v1.2+).** Once a player opens a Lootr container, the floating marker disappears for *them* — easy way to see at a glance which chests you've already cleared. Other players keep seeing it until they too open it. Toggle with `markerHideAfterOpen` in the config.
 - **Refresh-aware re-show (v1.4+).** When a Lootr container's loot refreshes, the marker reappears for previously-opened players too — so nobody misses fresh loot just because they already looted that container. Once anyone opens it post-refresh and consumes the cycle, it goes back to normal hide-after-open behavior.
 - **Glowing marker (v1.4+).** The floating marker glows with a configurable color (default cyan) so unopened containers are visible through walls at distance. Set `markerGlowingEnabled: false` to disable, or `markerGlowColor` to change the hue.
+- **Lootr-branded textures (v1.5+).** Set `useLootrTextures: true` and the marker switches from a vanilla item to a custom-textured cube using Lootr's signature gold-planks (silver-planks for trapped chests) block textures. Textures ship in PolyLootr's bundled resource pack and are auto-served to vanilla clients via Polymer Autohost. Players see a "Server Resource Pack" prompt on join; if they decline, the marker falls back gracefully to a stick (item the model is overlaid on). Off by default for backwards compatibility.
 - **Menu title shows live state (v1.3+).** When a player opens a Lootr container, the menu title is augmented with refresh / decay countdowns and opener count (e.g. *"Loot Chest §a(refresh in 4m 30s) §7[2 openers]"*). Format strings configurable; disable with `menuTitleInfoEnabled: false`.
 - **`/polylootr` admin commands (v1.3+).** Reload config without restart, list Lootr containers near you with their state, and check looted-stat counts:
   - `/polylootr reload`
@@ -51,7 +52,7 @@ PolyLootr bundles polymer-core and polymer-virtual-entity via JIJ. If you want a
 
 ## Installation
 
-1. Drop `PolyLootr-1.4.0+26.1.jar` into your server's `mods/` folder alongside Lootr and Fabric API.
+1. Drop `PolyLootr-1.5.0+26.1.jar` into your server's `mods/` folder alongside Lootr and Fabric API.
 2. Start the server. PolyLootr will create `config/polylootr.json` on first run.
 3. Vanilla clients can now connect; they'll see Lootr containers as plain vanilla containers with per-player particles indicating unlooted state.
 
@@ -79,6 +80,7 @@ PolyLootr writes a default `config/polylootr.json` on first launch:
   "markerHideAfterOpen": true,
   "markerGlowingEnabled": true,
   "markerGlowColor": 5635839,
+  "useLootrTextures": false,
   "markerItemsHelp": "Per-container-type marker items. Map keys are container types (chest, trapped_chest, barrel, shulker_box, suspicious_sand, suspicious_gravel, decorated_pot). Values are vanilla item ids; invalid ids fall back to the wrapper's built-in default for that type. The 'markerItemId' field below globally overrides every entry here when non-empty.",
   "markerItems": {
     "chest": "minecraft:amethyst_shard",
@@ -124,6 +126,7 @@ Restart the server to apply config changes — PolyLootr loads the file once at 
 | `markerHideAfterOpen` | bool | `true` | When true, the marker disappears for any player who has personally opened the container. Other players keep seeing it. When the container's loot refreshes, the marker reappears for previous openers too until someone consumes the refresh. |
 | `markerGlowingEnabled` | bool | `true` | Renders the marker with a glowing outline visible through walls. Disable for a flatter look. |
 | `markerGlowColor` | int | `5635839` (`0x55FFFF` cyan) | RGB color of the glow outline. Set to `-1` to use the entity's team color (white if no team). Provide as decimal in JSON; common values: `16777215` (white), `16776960` (yellow), `16711935` (magenta), `65535` (cyan). |
+| `useLootrTextures` | bool | `false` | When true, marker uses PolyLootr's bundled Lootr-style block textures (gold_planks / silver_planks) via the auto-served resource pack instead of a vanilla item. Requires players accept the server resource pack on join. |
 | `markerItemsHelp` | string | (auto) | Inline help string the wrapper writes back into the JSON. Edit it freely; PolyLootr only restores it if you blank it. |
 | `markerItems.<type>` | string | per type | Per-container-type marker item. Edit a single value to change one type's marker. Container types: `chest`, `trapped_chest`, `barrel`, `shulker_box`, `suspicious_sand`, `suspicious_gravel`, `decorated_pot`. Invalid ids fall back to the wrapper's built-in default. |
 | `markerItemId` | string | `""` (empty) | Global override. Empty = use `markerItems` per-type values. Set to a vanilla item id (e.g. `minecraft:gold_nugget`) to force the same item on every Lootr container regardless of type. |

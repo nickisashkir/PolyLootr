@@ -63,6 +63,14 @@ public final class PolyLootrConfig {
     public int markerGlowColor = 0x55FFFF;
 
     /**
+     * When {@code true}, markers use Lootr's bundled "gold_planks" / "silver_planks"
+     * block textures (shipped with PolyLootr's resource pack) instead of the
+     * vanilla items in {@link #markerItems}. Players must accept the server
+     * resource pack on join for the custom textures to appear.
+     */
+    public boolean useLootrTextures = false;
+
+    /**
      * Help string serialized into the JSON to document {@link #markerItems}.
      * Gson preserves it round-trip so server admins reading the file see what
      * each option does without consulting external docs.

@@ -2,6 +2,7 @@ package dev.ashkir.polylootr;
 
 import dev.ashkir.polylootr.commands.PolyLootrCommands;
 import dev.ashkir.polylootr.config.PolyLootrConfig;
+import eu.pb4.polymer.resourcepack.api.PolymerResourcePackUtils;
 import eu.pb4.polymer.rsm.api.RegistrySyncUtils;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.resource.v1.ResourceLoader;
@@ -49,6 +50,11 @@ public class PolyLootr implements ModInitializer {
         RegistrySyncUtils.setServerEntry(BuiltInRegistries.PARTICLE_TYPE, ModParticles.REFRESH_PARTICLE);
 
         PolyLootrCommands.register();
+
+        // Bundle PolyLootr's assets into Polymer's auto-served resource pack so
+        // vanilla clients can render the custom item models we register on
+        // markers. polymer-autohost (also bundled) handles distribution.
+        PolymerResourcePackUtils.addModAssets(ID);
     }
 
     /**
