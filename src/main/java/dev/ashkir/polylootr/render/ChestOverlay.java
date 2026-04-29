@@ -36,8 +36,15 @@ public final class ChestOverlay {
     private static final Identifier TRAPPED_CHEST_OVERLAY_MODEL =
             Identifier.fromNamespaceAndPath(PolyLootr.ID, "lootr_trapped_chest_overlay");
 
-    /** Slight enlargement to cover any z-fighting against the underlying vanilla chest entity. */
-    private static final float SCALE = 1.001f;
+    /**
+     * Scale the overlay above 1.0 so its faces clear the vanilla chest entity
+     * rendered behind it. Vanilla chests are 14/16 wide; our overlay model is
+     * 16/16 (full block), so at scale 1.0 the outer faces sit at the block
+     * boundary while vanilla's inner geometry sits just inside, producing
+     * z-fighting flicker on the body sides. Pushing scale to 1.05 puts our
+     * inner geometry clearly outside vanilla's, eliminating the overlap.
+     */
+    private static final float SCALE = 1.05f;
 
     private ChestOverlay() {
     }
