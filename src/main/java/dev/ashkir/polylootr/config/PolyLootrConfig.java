@@ -63,12 +63,20 @@ public final class PolyLootrConfig {
     public int markerGlowColor = 0x55FFFF;
 
     /**
-     * When {@code true}, markers use Lootr's bundled "gold_planks" / "silver_planks"
-     * block textures (shipped with PolyLootr's resource pack) instead of the
-     * vanilla items in {@link #markerItems}. Players must accept the server
-     * resource pack on join for the custom textures to appear.
+     * When {@code true}, markers render Lootr's bundled "gold_planks" /
+     * "silver_planks" block textures (shipped with PolyLootr's resource pack).
+     * Players must accept the server resource pack on join for the custom
+     * textures to appear.
      */
-    public boolean useLootrTextures = false;
+    public boolean useLootrTextures = true;
+
+    /**
+     * When {@code true}, the vanilla-item marker (amethyst shard, wheat, etc.
+     * from {@link #markerItems}) is rendered ALONGSIDE the Lootr-textured cube
+     * — useful if you want both the brand cube and an item-shaped indicator.
+     * No effect if {@link #useLootrTextures} is false.
+     */
+    public boolean showVanillaItemMarker = false;
 
     /**
      * Help string serialized into the JSON to document {@link #markerItems}.
@@ -110,6 +118,8 @@ public final class PolyLootrConfig {
         m.put("suspicious_sand", "minecraft:brush");
         m.put("suspicious_gravel", "minecraft:brush");
         m.put("decorated_pot", "minecraft:brush");
+        m.put("chest_minecart", "minecraft:amethyst_shard");
+        m.put("item_frame", "minecraft:item_frame");
         return m;
     }
 

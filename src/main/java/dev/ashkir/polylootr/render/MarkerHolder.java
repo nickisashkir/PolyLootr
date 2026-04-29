@@ -9,57 +9,55 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import noobanidus.mods.lootr.common.api.LootrAPI;
+import noobanidus.mods.lootr.common.api.data.ILootrContainerInstance;
 import noobanidus.mods.lootr.common.api.data.ILootrInventoryStore;
-import noobanidus.mods.lootr.common.api.data.blockentity.ILootrBlockEntity;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Shared element holder driving particle effects and per-player visibility for
- * one Lootr container.
+ * Element holder for one Lootr container's marker, particles, and visibility
+ * logic. Works for both block-attached holders (default constructor) and
+ * entity-attached holders (constructor taking the {@link ILootrContainerInstance}
+ * directly — used for chest minecarts and item frames).
  *
- * <h2>Per-player visibility (hide after open, refresh-aware)</h2>
- * When {@link PolyLootrConfig#markerHideAfterOpen} is on (default), the marker
- * disappears for any player who has personally opened the container — UNLESS
- * the container's loot has just refreshed, in which case the marker reappears
- * for everyone (including previous openers) so nobody misses fresh loot. The
- * "refresh window" lasts until any player opens the container post-refresh,
- * which clears Lootr's {@code isRefreshed} flag via {@code performRefresh()}.
+ * <p>Position-related state ({@code emitX/Y/Z}) is queried fresh each tick from
+ * {@link ILootrContainerInstance#getParticleCenter()} rather than cached, so
+ * markers attached to moving entities still emit particles at the entity's
+ * current position.
  *
- * <p>{@link #startWatching(ServerGamePacketListenerImpl)} rejects players whose
- * marker would be hidden so they don't see/load it; {@link #onTick()} prunes
- * watchers who have flipped to opened since they started.
+ * <h2>Per-player visibility (hide-after-open, refresh-aware)</h2>
+ * Marker hidden iff player has opened the container AND the container is not
+ * in its post-refresh window. Both {@link #startWatching} and onTick prune
+ * apply the check.
  *
  * <h2>Refresh burst + re-watch</h2>
- * On the false→true transition of {@link ILootrInventoryStore#isRefreshed()},
- * broadcasts a particle burst AND iterates online players in range, calling
- * {@code startWatching} for any whose marker should now be visible (because
- * the refresh-aware visibility check now lets them through).
- *
- * <h2>Per-player unopened sparkles</h2>
- * For each watching player who has not yet opened, a configurable particle
- * burst is sent via {@code ServerLevel.sendParticles(player, ...)}. Frequency
- * is gated by {@link PolyLootrConfig#unopenedParticleIntervalTicks}.
+ * On {@link ILootrInventoryStore#isRefreshed()} false→true transition, broadcasts
+ * a particle burst and calls startWatching for online players within 64 blocks.
  */
 public class MarkerHolder extends ElementHolder {
     private static final double REFRESH_REWATCH_RADIUS_SQ = 64 * 64;
 
     private int tickCounter = 0;
-    private @Nullable ILootrBlockEntity cachedBlockEntity;
+    private @Nullable ILootrContainerInstance cachedInstance;
     private @Nullable ILootrInventoryStore cachedStore;
-    private double emitX;
-    private double emitY;
-    private double emitZ;
-    private boolean cacheReady = false;
     private boolean lastRefreshState = false;
+
+    /** Default constructor — block-source mode; resolves via world.getBlockEntity. */
+    public MarkerHolder() {
+    }
+
+    /** Entity-source constructor — caches the instance directly (cast from the entity). */
+    public MarkerHolder(ILootrContainerInstance entityInstance) {
+        this.cachedInstance = entityInstance;
+    }
 
     @Override
     public boolean startWatching(ServerGamePacketListenerImpl handler) {
         if (PolyLootrConfig.get().markerHideAfterOpen) {
-            ILootrBlockEntity be = resolveBlockEntity();
-            if (be != null && shouldHideForPlayer(be, handler.getPlayer())) {
+            ILootrContainerInstance instance = resolveInstance();
+            if (instance != null && shouldHideForPlayer(instance, handler.getPlayer())) {
                 return false;
             }
         }
@@ -74,12 +72,17 @@ public class MarkerHolder extends ElementHolder {
         if (attachment == null) return;
         ServerLevel world = attachment.getWorld();
 
-        ILootrBlockEntity be = resolveBlockEntity();
-        if (be == null) return;
+        ILootrContainerInstance instance = resolveInstance();
+        if (instance == null) return;
 
-        // Refresh detection (must run before visibility prune so the prune sees the new state)
+        var center = instance.getParticleCenter();
+        double emitX = center.x;
+        double emitY = center.y + instance.getParticleYOffset() + 0.5;
+        double emitZ = center.z;
+
+        // Refresh transition — burst + force re-watch nearby players whose marker should now show
         if (config.refreshBurstEnabled || config.markerHideAfterOpen) {
-            ILootrInventoryStore store = resolveStore(be);
+            ILootrInventoryStore store = resolveStore(instance);
             if (store != null) {
                 boolean refreshed = store.isRefreshed();
                 if (refreshed && !lastRefreshState) {
@@ -89,18 +92,18 @@ public class MarkerHolder extends ElementHolder {
                                 config.refreshBurstParticleCount, 0.5, 0.5, 0.5, 0.05);
                     }
                     if (config.markerHideAfterOpen) {
-                        rewatchNearbyPlayers(world);
+                        rewatchNearbyPlayers(world, emitX, emitY, emitZ);
                     }
                 }
                 lastRefreshState = refreshed;
             }
         }
 
-        // Hide marker for players whose visibility check now says hide
+        // Hide marker for watching players whose visibility now says hide
         if (config.markerHideAfterOpen) {
             List<ServerGamePacketListenerImpl> toRemove = null;
             for (var handler : getWatchingPlayers()) {
-                if (shouldHideForPlayer(be, handler.getPlayer())) {
+                if (shouldHideForPlayer(instance, handler.getPlayer())) {
                     if (toRemove == null) toRemove = new ArrayList<>();
                     toRemove.add(handler);
                 }
@@ -112,7 +115,6 @@ public class MarkerHolder extends ElementHolder {
             }
         }
 
-        // Unopened sparkles: per-player, throttled by interval
         if (!config.unopenedParticlesEnabled) return;
         tickCounter++;
         if (tickCounter < config.unopenedParticleIntervalTicks) return;
@@ -122,43 +124,37 @@ public class MarkerHolder extends ElementHolder {
         ParticleOptions particle = config.unopenedParticle();
         for (var handler : getWatchingPlayers()) {
             ServerPlayer player = handler.getPlayer();
-            if (be.hasServerOpened(player)) continue;
+            if (instance.hasServerOpened(player)) continue;
             world.sendParticles(player, particle, false, false,
                     emitX, emitY, emitZ,
                     config.unopenedParticleCount, 0.15, 0.1, 0.15, 0.02);
         }
     }
 
-    /**
-     * Returns true if the marker should be hidden from the given player right
-     * now. Hidden iff the player has opened the container AND the container is
-     * NOT currently in its refreshed-but-not-yet-consumed window.
-     */
-    private boolean shouldHideForPlayer(ILootrBlockEntity be, ServerPlayer player) {
-        if (!be.hasServerOpened(player)) return false;
-        ILootrInventoryStore store = resolveStore(be);
+    private boolean shouldHideForPlayer(ILootrContainerInstance instance, ServerPlayer player) {
+        if (!instance.hasServerOpened(player)) return false;
+        ILootrInventoryStore store = resolveStore(instance);
         if (store != null && store.isRefreshed()) return false;
         return true;
     }
 
-    /**
-     * On a refresh transition, walk online players within the rewatch radius and
-     * try to start watching them. {@code startWatching} is idempotent (returns
-     * false if already watching) and respects the visibility check, so this is
-     * safe to call broadly.
-     */
-    private void rewatchNearbyPlayers(ServerLevel world) {
+    private void rewatchNearbyPlayers(ServerLevel world, double x, double y, double z) {
         for (ServerPlayer player : world.players()) {
-            double dx = player.getX() - emitX;
-            double dy = player.getY() - emitY;
-            double dz = player.getZ() - emitZ;
+            double dx = player.getX() - x;
+            double dy = player.getY() - y;
+            double dz = player.getZ() - z;
             if (dx * dx + dy * dy + dz * dz > REFRESH_REWATCH_RADIUS_SQ) continue;
             startWatching(player);
         }
     }
 
-    private @Nullable ILootrBlockEntity resolveBlockEntity() {
-        if (cachedBlockEntity != null) return cachedBlockEntity;
+    /**
+     * Resolves the container instance — for entity sources, the instance is
+     * already cached at construction. For block sources, queries the block
+     * entity at the holder's attachment position once and caches that.
+     */
+    private @Nullable ILootrContainerInstance resolveInstance() {
+        if (cachedInstance != null) return cachedInstance;
 
         var attachment = getAttachment();
         if (attachment == null) return null;
@@ -166,22 +162,16 @@ public class MarkerHolder extends ElementHolder {
         ServerLevel world = attachment.getWorld();
         BlockPos pos = BlockPos.containing(attachment.getPos());
         BlockEntity be = world.getBlockEntity(pos);
-        if (!(be instanceof ILootrBlockEntity lootrBE)) return null;
-
-        cachedBlockEntity = lootrBE;
-        if (!cacheReady) {
-            var center = lootrBE.getParticleCenter();
-            emitX = center.x;
-            emitY = center.y + lootrBE.getParticleYOffset() + 0.5;
-            emitZ = center.z;
-            cacheReady = true;
+        if (be instanceof ILootrContainerInstance instance) {
+            cachedInstance = instance;
+            return instance;
         }
-        return cachedBlockEntity;
+        return null;
     }
 
-    private @Nullable ILootrInventoryStore resolveStore(ILootrBlockEntity be) {
+    private @Nullable ILootrInventoryStore resolveStore(ILootrContainerInstance instance) {
         if (cachedStore != null) return cachedStore;
-        cachedStore = LootrAPI.getData(be);
+        cachedStore = LootrAPI.getData(instance);
         return cachedStore;
     }
 }
