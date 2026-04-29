@@ -72,11 +72,21 @@ public final class PolyLootrConfig {
 
     /**
      * When {@code true}, Lootr chests and trapped chests are rendered on vanilla
-     * clients as a custom chest-shape block (via Polymer Blocks) using Lootr's
-     * gold_planks / silver_planks textures, instead of vanilla CHEST. Vanilla
-     * chests on the server are unaffected. Requires server resource pack acceptance.
+     * clients as a custom-textured block (via Polymer Blocks) using Lootr's
+     * gold_planks / silver_planks textures, instead of vanilla CHEST.
+     *
+     * <p><b>Off by default.</b> The polymer-blocks {@code FULL_BLOCK} type uses
+     * vanilla note_block as its underlying type, so Lootr chests get note_block
+     * client-side audio (a tone when punched, instrument cycling on right-click,
+     * etc.). Enable only if you've decided those quirks are acceptable for your
+     * server. With this off, Lootr chests render as vanilla wood chests with
+     * the floating gold-planks marker on top — same UX as v1.5.x.
+     *
+     * <p>Requires {@link PolymerResourcePackUtils#markAsRequired()} to be in
+     * effect for clients to actually see the custom block. The marker-only
+     * fallback works without any pack requirement.
      */
-    public boolean useCustomChestBlock = true;
+    public boolean useCustomChestBlock = false;
 
     /**
      * When {@code true}, the vanilla-item marker (amethyst shard, wheat, etc.
