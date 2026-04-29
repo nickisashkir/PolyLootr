@@ -5,6 +5,7 @@ import eu.pb4.polymer.virtualentity.api.elements.ItemDisplayElement;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -50,11 +51,14 @@ public final class ChestOverlay {
     }
 
     public static ItemDisplayElement create(String type, BlockState state) {
-        Identifier model = "trapped_chest".equals(type)
-                ? TRAPPED_CHEST_OVERLAY_MODEL
-                : CHEST_OVERLAY_MODEL;
+        boolean trapped = "trapped_chest".equals(type);
+        Identifier model = trapped ? TRAPPED_CHEST_OVERLAY_MODEL : CHEST_OVERLAY_MODEL;
+        // Use the matching vanilla chest item as the base so HUD mods (Jade, etc.)
+        // resolve the entity's display name to "Chest" / "Trapped Chest" instead
+        // of "Stick". ITEM_MODEL still overrides the visual to our custom model.
+        Item baseItem = trapped ? Items.TRAPPED_CHEST : Items.CHEST;
 
-        ItemStack stack = new ItemStack(Items.STICK);
+        ItemStack stack = new ItemStack(baseItem);
         stack.set(DataComponents.ITEM_MODEL, model);
 
         ItemDisplayElement element = new ItemDisplayElement(stack);
